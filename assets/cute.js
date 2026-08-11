@@ -95,6 +95,24 @@
     saveDates(loadDates().filter(function (d) { return d.id !== id; }));
   }
 
+  function findDate(id) {
+    var hit = null;
+    loadDates().forEach(function (d) { if (d.id === id) hit = d; });
+    return hit;
+  }
+
+  function updateDate(id, patch) {
+    var list = loadDates();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id !== id) continue;
+      Object.keys(patch).forEach(function (k) { list[i][k] = patch[k]; });
+      list[i].edited = new Date().toISOString();
+      saveDates(list);
+      return list[i];
+    }
+    return null;
+  }
+
   /* ---------- date formatting ---------- */
 
   function todayISO() {
@@ -128,6 +146,8 @@
     saveDates: saveDates,
     addDate: addDate,
     removeDate: removeDate,
+    findDate: findDate,
+    updateDate: updateDate,
     todayISO: todayISO,
     prettyDate: prettyDate,
     prettyTime: prettyTime

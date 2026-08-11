@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Plan our date 🗓️</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗓️</text></svg>">
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/heart-180.png">
 <link rel="stylesheet" href="assets/styles.css">
 <style>
   .hero { text-align: center; }
@@ -13,6 +15,7 @@
   .hero h1 { color: var(--pink-600); text-shadow: 0 3px 0 #fff; }
   .savebar { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .hint { font-size: .85rem; color: var(--plum-soft); margin-top: 6px; text-align: center; }
+  .gap { height: 34px; }
 </style>
 </head>
 <body>
@@ -30,8 +33,8 @@
 
   <section class="card hero">
     <span class="mascot" aria-hidden="true">🧁</span>
-    <h1>Yay! Let&rsquo;s plan it 💕</h1>
-    <p class="sub">Pick a day, the food, and all the fun bits &mdash; then arrange them however you like.</p>
+    <h1 id="heroTitle">Yay! Let&rsquo;s plan it 💕</h1>
+    <p class="sub" id="heroSub">Pick a day, the food, and all the fun bits &mdash; whatever you tap first comes first.</p>
   </section>
 
   <section class="card">
@@ -72,18 +75,11 @@
       <input type="text" id="actNew" placeholder="Add your own idea…" maxlength="30">
       <button class="btn mini" type="button" id="actAdd">Add ✨</button>
     </div>
-
-    <label class="field" for="order">Quick arrange</label>
-    <select id="order">
-      <option value="food-first">Eat first, then play 🍽️➡️🎉</option>
-      <option value="fun-first">Play first, then eat 🎉➡️🍽️</option>
-      <option value="mixed">Mix it up 🔀</option>
-    </select>
   </section>
 
   <section class="card">
     <h2>💌 Our schedule</h2>
-    <p class="sub">Drag the <strong>⠿</strong> handle to reorder, set each time, and tweak how long everything lasts. Times after a slot shift automatically.</p>
+    <p class="sub">Slots line up in the order you picked them. Drag the <strong>⠿</strong> handle to rearrange, set each time, and tweak how long everything lasts &mdash; the times after a slot follow along.</p>
 
     <ul class="schedule" id="schedule"></ul>
     <p class="empty" id="schedEmpty">Pick a few things above and the plan appears here ✨</p>
@@ -93,9 +89,7 @@
       <button class="btn mini" type="button" id="slotAdd">Add slot ➕</button>
     </div>
 
-    <div class="pillrow">
-      <button class="btn ghost mini" type="button" id="resetTimes">Re-time from the start ⏱️</button>
-    </div>
+    <div class="gap" aria-hidden="true"></div>
 
     <label class="field" for="notes">Sweet notes</label>
     <textarea id="notes" placeholder="Wear something comfy, I have a surprise 🎁"></textarea>
@@ -129,37 +123,41 @@
     "💃 Dancing", "🌌 Stargazing", "👩‍🍳 Cooking together", "🛍️ Window shopping"
   ];
 
-  var picked = { food: [], acts: [] };
-  var chipEls = {};        // "food:🍕 Pizza" -> chip element
+  var chosen = [];         // keys, in the order they were picked
+  var meta = {};           // key -> { what, mins }
+  var chipEls = {};        // key -> chip element
   var items = [];          // the schedule, in order
-  var dropped = {};        // keys the user deleted by hand
-  var customs = [];        // extra slots the user invented
-  var customSeq = 0;
+  var dropped = {};        // slots the user deleted by hand
+  var slotSeq = 0;
+  var quiet = false;       // suppress confetti while restoring a saved date
 
   /* ---------------- chips ---------------- */
 
   function keyOf(bucket, label) { return bucket + ":" + label; }
 
   function makeChip(label, bucket) {
+    var key = keyOf(bucket, label);
     var b = document.createElement("button");
     b.type = "button";
     b.className = "chip";
     b.setAttribute("aria-pressed", "false");
     b.textContent = label;
-    chipEls[keyOf(bucket, label)] = b;
+    chipEls[key] = b;
 
     b.addEventListener("click", function () {
       var on = b.getAttribute("aria-pressed") === "true";
       b.setAttribute("aria-pressed", on ? "false" : "true");
 
-      var list = picked[bucket];
       if (on) {
-        list.splice(list.indexOf(label), 1);
+        chosen = chosen.filter(function (k) { return k !== key; });
       } else {
-        list.push(label);
-        delete dropped[keyOf(bucket, label)];
-        var r = b.getBoundingClientRect();
-        Cute.burst(r.left + r.width / 2, r.top + r.height / 2, 5);
+        meta[key] = { what: label, mins: bucket === "food" ? 80 : 70 };
+        chosen.push(key);            // picked later = later in the day
+        delete dropped[key];
+        if (!quiet) {
+          var r = b.getBoundingClientRect();
+          Cute.burst(r.left + r.width / 2, r.top + r.height / 2, 5);
+        }
       }
       sync();
       render();
@@ -176,18 +174,22 @@
   fill("foodChips", FOODS, "food");
   fill("actChips", ACTS, "acts");
 
-  function wireAdd(inputId, btnId, containerId, bucket) {
+  function pickChip(bucket, label) {
+    var key = keyOf(bucket, label);
+    var chip = chipEls[key];
+    if (!chip) {
+      chip = makeChip(label, bucket);
+      $(bucket === "food" ? "foodChips" : "actChips").appendChild(chip);
+    }
+    if (chip.getAttribute("aria-pressed") !== "true") chip.click();
+    return chip;
+  }
+
+  function wireAdd(inputId, btnId, bucket) {
     function add() {
       var val = $(inputId).value.trim();
       if (!val) return;
-      var existing = chipEls[keyOf(bucket, val)];
-      if (existing) {
-        if (existing.getAttribute("aria-pressed") !== "true") existing.click();
-      } else {
-        var chip = makeChip(val, bucket);
-        $(containerId).appendChild(chip);
-        chip.click();
-      }
+      pickChip(bucket, val);
       $(inputId).value = "";
     }
     $(btnId).addEventListener("click", add);
@@ -196,8 +198,8 @@
     });
   }
 
-  wireAdd("foodNew", "foodAdd", "foodChips", "food");
-  wireAdd("actNew", "actAdd", "actChips", "acts");
+  wireAdd("foodNew", "foodAdd", "food");
+  wireAdd("actNew", "actAdd", "acts");
 
   /* ---------------- time helpers ---------------- */
 
@@ -226,28 +228,17 @@
 
   function want() {
     var list = [];
-    var anything = picked.food.length || picked.acts.length || customs.length;
-    if (!anything) return list;
+    if (!chosen.length) return list;
 
-    if (!dropped.meet) {
-      list.push({ key: "meet", what: "Meet up 🥰", mins: 20 });
-    }
-    picked.food.forEach(function (f) {
-      if (!dropped[keyOf("food", f)]) list.push({ key: keyOf("food", f), what: f, mins: 80, note: "food time!" });
+    if (!dropped.meet) list.push({ key: "meet", what: "Meet up 🥰", mins: 20 });
+    chosen.forEach(function (k) {
+      if (!dropped[k]) list.push({ key: k, what: meta[k].what, mins: meta[k].mins });
     });
-    picked.acts.forEach(function (a) {
-      if (!dropped[keyOf("acts", a)]) list.push({ key: keyOf("acts", a), what: a, mins: 70, note: "our thing 💫" });
-    });
-    customs.forEach(function (c) {
-      if (!dropped[c.key]) list.push({ key: c.key, what: c.what, mins: c.mins, note: "just ours ✨" });
-    });
-    if (!dropped.walk) {
-      list.push({ key: "walk", what: "A slow walk home 🌙", mins: 30, note: "the best part" });
-    }
+    if (!dropped.walk) list.push({ key: "walk", what: "A slow walk home 🌙", mins: 30 });
     return list;
   }
 
-  /* Keep whatever the user has arranged; only add/remove what changed. */
+  /* Keep whatever the user has arranged; only add or remove what changed. */
   function sync() {
     var wanted = want();
     var byKey = {};
@@ -263,42 +254,10 @@
       if (w.key === "walk") {
         items.push(w);
       } else {
-        // slot new picks in just before the walk home, if it is there
         var at = items.findIndex(function (it) { return it.key === "walk"; });
         if (at === -1) items.push(w); else items.splice(at, 0, w);
       }
     });
-
-    var place = $("place").value.trim();
-    items.forEach(function (it) {
-      if (it.key === "meet") it.note = place || "wherever you are";
-    });
-  }
-
-  function arrange() {
-    var mode = $("order").value;
-
-    var meet = items.filter(function (i) { return i.key === "meet"; });
-    var walk = items.filter(function (i) { return i.key === "walk"; });
-    var food = items.filter(function (i) { return i.key.indexOf("food:") === 0; });
-    var acts = items.filter(function (i) {
-      return i.key.indexOf("acts:") === 0 || i.key.indexOf("slot:") === 0;
-    });
-
-    var mid;
-    if (mode === "food-first") {
-      mid = food.concat(acts);
-    } else if (mode === "fun-first") {
-      mid = acts.concat(food);
-    } else {
-      mid = [];
-      for (var i = 0; i < Math.max(food.length, acts.length); i++) {
-        if (acts[i]) mid.push(acts[i]);
-        if (food[i]) mid.push(food[i]);
-      }
-    }
-
-    items = meet.concat(mid, walk);
   }
 
   /* ---------------- rendering ---------------- */
@@ -348,12 +307,6 @@
       var what = document.createElement("span");
       what.className = "what";
       what.textContent = it.what;
-      if (it.note) {
-        var note = document.createElement("small");
-        note.className = "note";
-        note.textContent = it.note;
-        what.appendChild(note);
-      }
 
       var dur = document.createElement("span");
       dur.className = "dur";
@@ -366,6 +319,7 @@
       durIn.setAttribute("aria-label", "Minutes for " + it.what);
       durIn.addEventListener("change", function () {
         it.mins = Math.max(5, Math.min(600, Number(durIn.value) || 5));
+        if (meta[it.key]) meta[it.key].mins = it.mins;
         render();
       });
       dur.appendChild(durIn);
@@ -378,11 +332,12 @@
       del.title = "Remove from the schedule";
       del.setAttribute("aria-label", "Remove " + it.what);
       del.addEventListener("click", function () {
-        dropped[it.key] = true;
         var chip = chipEls[it.key];
         if (chip && chip.getAttribute("aria-pressed") === "true") {
-          chip.click();               // this re-syncs and re-renders
+          chip.click();                     // unpicks it and re-renders
         } else {
+          dropped[it.key] = true;
+          chosen = chosen.filter(function (k) { return k !== it.key; });
           sync();
           render();
         }
@@ -462,18 +417,14 @@
   window.addEventListener("pointerup", endDrag);
   window.addEventListener("pointercancel", endDrag);
 
-  /* ---------------- wiring ---------------- */
-
-  ["time", "place"].forEach(function (id) {
-    $(id).addEventListener("input", function () { sync(); render(); });
-  });
-
-  $("order").addEventListener("change", function () { sync(); arrange(); render(); });
+  /* ---------------- extra slots ---------------- */
 
   function addSlot() {
     var val = $("slotNew").value.trim();
     if (!val) return;
-    customs.push({ key: "slot:" + (customSeq++), what: val, mins: 45 });
+    var key = "slot:" + (slotSeq++);
+    meta[key] = { what: val, mins: 45 };
+    chosen.push(key);
     $("slotNew").value = "";
     sync();
     render();
@@ -484,14 +435,79 @@
     if (e.key === "Enter") { e.preventDefault(); addSlot(); }
   });
 
-  $("resetTimes").addEventListener("click", function () {
-    items.forEach(function (it) { it.fixed = null; });
-    render();
-  });
+  $("time").addEventListener("input", render);
 
-  $("date").value = Cute.todayISO();
+  /* ---------------- editing an existing date ---------------- */
 
-  sync();
+  var editId = new URLSearchParams(window.location.search).get("edit");
+  var editing = editId ? Cute.findDate(editId) : null;
+
+  function restore(entry) {
+    $("title").value = entry.title || "";
+    $("date").value = entry.date;
+    $("time").value = entry.time || "18:00";
+    $("place").value = entry.place || "";
+    $("notes").value = entry.notes || "";
+
+    var rows = (entry.schedule || []).filter(function (r) { return r.key; });
+
+    quiet = true;
+    if (rows.length) {
+      rows.forEach(function (r) {
+        if (r.key.indexOf("food:") === 0) {
+          pickChip("food", r.key.slice(5));
+        } else if (r.key.indexOf("acts:") === 0) {
+          pickChip("acts", r.key.slice(5));
+        } else if (r.key.indexOf("slot:") === 0) {
+          var n = Number(r.key.slice(5));
+          if (n >= slotSeq) slotSeq = n + 1;
+          meta[r.key] = { what: r.what, mins: r.mins || 45 };
+          chosen.push(r.key);
+        }
+      });
+      if (!rows.some(function (r) { return r.key === "meet"; })) dropped.meet = true;
+      if (!rows.some(function (r) { return r.key === "walk"; })) dropped.walk = true;
+    } else {
+      // older saved dates: rebuild from the chips alone
+      (entry.foods || []).forEach(function (f) { pickChip("food", f); });
+      (entry.activities || []).forEach(function (a) { pickChip("acts", a); });
+    }
+    quiet = false;
+
+    sync();
+
+    if (rows.length) {
+      var order = rows.map(function (r) { return r.key; });
+      var byKey = {};
+      rows.forEach(function (r) { byKey[r.key] = r; });
+
+      items.sort(function (a, b) { return order.indexOf(a.key) - order.indexOf(b.key); });
+
+      // keep the exact times that were saved: pin only the ones that need it
+      var t = toMins($("time").value);
+      items.forEach(function (it) {
+        var row = byKey[it.key];
+        if (row && row.mins) it.mins = row.mins;
+        if (row && row.time && row.time !== toHHMM(t)) {
+          it.fixed = row.time;
+          t = toMins(row.time);
+        }
+        t += it.mins;
+      });
+    }
+
+    $("heroTitle").textContent = "Let's tweak this date ✏️";
+    $("heroSub").textContent = "Change anything you like — it stays in the same spot on the calendar.";
+    $("save").textContent = "Save changes 💖";
+    document.title = "Edit our date ✏️";
+  }
+
+  if (editing) {
+    restore(editing);
+  } else {
+    $("date").value = Cute.todayISO();
+  }
+
   render();
 
   /* ---------------- save ---------------- */
@@ -510,21 +526,26 @@
 
     computeTimes();
 
-    Cute.addDate({
+    var entry = {
       title: $("title").value.trim() || "Our date 💗",
       date: day,
       time: items[0] ? items[0].time : ($("time").value || "18:00"),
       place: $("place").value.trim(),
-      foods: picked.food.slice(),
-      activities: picked.acts.slice(),
+      foods: chosen.filter(function (k) { return k.indexOf("food:") === 0; })
+                   .map(function (k) { return meta[k].what; }),
+      activities: chosen.filter(function (k) { return k.indexOf("acts:") === 0; })
+                        .map(function (k) { return meta[k].what; }),
       notes: $("notes").value.trim(),
       schedule: items.map(function (it) {
-        return { time: it.time, what: it.what, note: it.note || "" };
+        return { key: it.key, time: it.time, what: it.what, mins: it.mins };
       })
-    });
+    };
+
+    if (editing) Cute.updateDate(editing.id, entry);
+    else Cute.addDate(entry);
 
     Cute.burst(e.clientX || window.innerWidth / 2, e.clientY || window.innerHeight / 2, 45);
-    $("hint").textContent = "Saved! Taking you to the calendar… 💌";
+    $("hint").textContent = editing ? "Updated! Back to the calendar… 💌" : "Saved! Taking you to the calendar… 💌";
     setTimeout(function () { window.location.href = "calendar.html"; }, 900);
   });
 })();

@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Our date calendar 📅</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/heart-180.png">
 <link rel="stylesheet" href="assets/styles.css">
 <style>
   .monthname { font-family: var(--font-cute); font-size: 1.4rem; font-weight: 800; color: var(--pink-600); }
@@ -25,6 +27,15 @@
   dialog::backdrop { background: rgba(190, 120, 160, .35); backdrop-filter: blur(3px); }
   .dlg { padding: 22px; }
   .dlg h2 { color: var(--pink-600); }
+  .dlg hr.dashed { border: none; border-top: 2px dashed var(--pink-200); margin: 18px 0 14px; }
+
+  .dlgfoot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
 </style>
 </head>
 <body>
@@ -265,12 +276,6 @@
         var what = document.createElement("span");
         what.className = "what";
         what.textContent = row.what;
-        if (row.note) {
-          var n = document.createElement("small");
-          n.className = "note";
-          n.textContent = row.note;
-          what.appendChild(n);
-        }
         li.appendChild(when);
         li.appendChild(what);
         ul.appendChild(li);
@@ -284,6 +289,18 @@
         body.appendChild(n2);
       }
 
+      var hr = document.createElement("hr");
+      hr.className = "dashed";
+      body.appendChild(hr);
+
+      var foot = document.createElement("div");
+      foot.className = "dlgfoot";
+
+      var edit = document.createElement("a");
+      edit.className = "btn mini";
+      edit.href = "plan.html?edit=" + encodeURIComponent(entry.id);
+      edit.textContent = "Edit this date ✏️";
+
       var del = document.createElement("button");
       del.className = "btn ghost mini";
       del.type = "button";
@@ -295,22 +312,19 @@
         renderMonth();
         renderLists();
       });
-      body.appendChild(del);
 
-      var hr = document.createElement("hr");
-      hr.style.cssText = "border:none;border-top:2px dashed var(--pink-200);margin:16px 0";
-      body.appendChild(hr);
+      foot.appendChild(edit);
+      foot.appendChild(del);
+      body.appendChild(foot);
     });
-
-    var close = document.createElement("button");
-    close.className = "btn mini";
-    close.type = "button";
-    close.textContent = "Close 💗";
-    close.addEventListener("click", function () { $("dlg").close(); });
-    body.appendChild(close);
 
     $("dlg").showModal();
   }
+
+  // tapping the dark area outside the card closes it (Esc works too)
+  $("dlg").addEventListener("click", function (e) {
+    if (e.target === $("dlg")) $("dlg").close();
+  });
 
   function escapeHTML(s) {
     return String(s).replace(/[&<>"']/g, function (c) {

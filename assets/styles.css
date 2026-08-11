@@ -150,6 +150,8 @@ h2 { font-size: 1.35rem; }
   padding: 14px 28px;
   cursor: pointer;
   color: #fff;
+  text-decoration: none;
+  display: inline-block;
   background: linear-gradient(160deg, var(--pink-400), var(--pink-600));
   box-shadow: var(--shadow-sm), inset 0 -4px 0 rgba(0, 0, 0, .12);
   transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;

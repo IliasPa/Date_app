@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Will you go on a date with me? 💗</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💗</text></svg>">
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/heart-180.png">
 <link rel="stylesheet" href="assets/styles.css">
 <style>
   .ask {
@@ -44,12 +46,39 @@
     text-shadow: 0 3px 0 #fff, 0 8px 18px rgba(240, 90, 150, .25);
   }
 
+  /* one message at a time: the old line lifts away before the new one lands */
   .taunt {
-    min-height: 1.5em;
+    display: grid;
+    place-items: center;
+    min-height: 3.2em;
+    margin: 6px 0 4px;
+    overflow: hidden;
+  }
+
+  .taunt .line {
+    grid-area: 1 / 1;
     font-weight: 700;
     color: var(--plum-soft);
-    margin: 6px 0 4px;
-    transition: opacity .2s ease;
+    animation: lineIn .4s cubic-bezier(.22, .9, .3, 1.2) .12s both;
+  }
+
+  .taunt .line.out {
+    animation: lineOut .22s ease forwards;
+    pointer-events: none;
+  }
+
+  @keyframes lineIn {
+    from { opacity: 0; transform: translateY(16px) scale(.92) rotate(-1.5deg); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  @keyframes lineOut {
+    to { opacity: 0; transform: translateY(-16px) scale(.92) rotate(1.5deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .taunt .line { animation: none; }
+    .taunt .line.out { display: none; }
   }
 
   .btnarea {
@@ -125,7 +154,7 @@
     <span class="mascot" aria-hidden="true">💐</span>
     <h1>Will you go on a date with me?</h1>
     <p class="lead"><strong>Take your time&hellip; you are free to answer whatever you want.</strong></p>
-    <p class="taunt" id="taunt">Pretty please? 🥺</p>
+    <div class="taunt" id="taunt" aria-live="polite"><span class="line">Pretty please? 🥺</span></div>
 
     <div class="btnarea">
       <button class="btn" id="yesBtn" type="button">YES 💖</button>
@@ -154,19 +183,74 @@
   var yesBtn = document.getElementById("yesBtn");
   var taunt  = document.getElementById("taunt");
 
+  /* The first few appear in order, then it's a random shuffle forever. */
   var TAUNTS = [
-    "Pretty please? 🥺",
+    "Ooh, so close! 😯",
     "It swims away, doesn't it? 🌊",
-    "You can't catch a fish with your hands 🎣",
+    "You can't catch that one with your hands 🎣",
     "Nope. Not today. 😌",
-    "The No button is on my side 😼",
+    "That button is on my side 😼",
     "Try the big one instead 👉",
     "It's getting faster... 💨",
     "Destiny says YES 💫",
     "Your finger is no match for it 🐠",
-    "Okay this is just funny now 😂",
+    "Okay, this is getting funny 😂",
     "The YES is getting huge for a reason 🙃"
   ];
+
+  var MORE = [
+    "Slippery little thing, isn't it? 🫧",
+    "Plot twist: it can't be clicked 🎬",
+    "Even my mouse gave up 🖱️",
+    "It has trust issues 😅",
+    "Zero out of " + "∞" + " catches 🏆",
+    "That one's just decoration 🎀",
+    "Are you sure you want that one? 🤨",
+    "It practiced all week for this 🏃",
+    "You're making it dizzy 😵‍💫",
+    "The other button loves you more 💗",
+    "It's a professional escape artist 🎩",
+    "Physics says no, hearts say yes 💘",
+    "One tiny click and it's dinner time 🍝",
+    "I put googly eyes on it, look 👀",
+    "It's shy, be gentle 🥺",
+    "Somewhere, a fish is proud 🐟",
+    "Your patience is adorable, though 🥰",
+    "Fine, keep trying — I'll wait 🍵",
+    "Rumour says it's ticklish 🤭",
+    "It has a black belt in dodging 🥋",
+    "Still not it 🙈",
+    "The YES is right there, all cozy 🛋️",
+    "Come on, one little yes? 🌷",
+    "It runs on stubbornness ⚡",
+    "Nice try! Truly. 👏"
+  ];
+
+  var lastLine = "";
+
+  function say(text) {
+    if (text === lastLine) return;
+    lastLine = text;
+
+    var current = taunt.querySelector(".line:not(.out)");
+    taunt.querySelectorAll(".line.out").forEach(function (n) { n.remove(); });
+
+    if (current) {
+      current.classList.add("out");
+      setTimeout(function () { current.remove(); }, 260);
+    }
+
+    var line = document.createElement("span");
+    line.className = "line";
+    line.textContent = text;
+    taunt.appendChild(line);
+  }
+
+  function nextTaunt(n) {
+    if (n - 1 < TAUNTS.length) return TAUNTS[n - 1];
+    var pool = MORE.filter(function (t) { return t !== lastLine; });
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
 
   /* ---------------- fish physics for the NO button ---------------- */
 
@@ -226,12 +310,7 @@
     st.agility = Math.min(4.6, st.agility + (strong ? 0.32 : 0.16));
     st.parked = false;
     growYes();
-
-    taunt.style.opacity = "0";
-    setTimeout(function () {
-      taunt.textContent = TAUNTS[Math.min(attempts, TAUNTS.length - 1)];
-      taunt.style.opacity = "1";
-    }, 140);
+    say(nextTaunt(attempts));
   }
 
   function flee(px, py, power) {
