@@ -14,9 +14,7 @@
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyDPOTT94xlpYhvnkazEk_C209aSuvYglWs",
   authDomain: "cute-date106.firebaseapp.com",
-  // Realtime Database → Data tab: the URL printed above the data tree.
-  // Syncing stays off until this is filled in.
-  databaseURL: "",
+  databaseURL: "https://cute-date106-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "cute-date106",
   appId: "1:263162280493:web:53d5b59c9c3a0f928156a4"
 };
