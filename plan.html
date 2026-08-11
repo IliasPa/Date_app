@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan our date 🗓️</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗓️</text></svg>">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  .hero { text-align: center; }
+  .hero .bear { font-size: 3rem; display: block; animation: bob 2.6s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-8px) rotate(3deg); } }
+  .hero h1 { color: var(--pink-600); text-shadow: 0 3px 0 #fff; }
+  .savebar { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .hint { font-size: .85rem; color: var(--plum-soft); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div class="sky" aria-hidden="true"></div>
+
+<div class="topbar">
+  <a class="brand" href="index.html">💗 Our Date App</a>
+  <div class="navlinks">
+    <a class="btn ghost mini" href="calendar.html">📅 Calendar</a>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section class="card hero">
+    <span class="bear" aria-hidden="true">🐻‍❄️</span>
+    <h1>Yay! Let&rsquo;s plan it 💕</h1>
+    <p class="sub" id="yesLine">Pick a day, the food, and all the fun bits &mdash; I&rsquo;ll turn it into a schedule.</p>
+  </section>
+
+  <section class="card">
+    <h2>🌷 The basics</h2>
+    <label class="field" for="title">What should we call this date?</label>
+    <input type="text" id="title" placeholder="Our cutest day ever 💗" maxlength="60">
+
+    <div class="row">
+      <div>
+        <label class="field" for="date">Day</label>
+        <input type="date" id="date">
+      </div>
+      <div>
+        <label class="field" for="time">Start time</label>
+        <input type="time" id="time" value="18:00">
+      </div>
+    </div>
+
+    <label class="field" for="place">Where do we meet?</label>
+    <input type="text" id="place" placeholder="At your door 🚪 / the little cafe on the corner">
+  </section>
+
+  <section class="card">
+    <h2>🍰 What are we eating?</h2>
+    <p class="sub">Pick as many as you like.</p>
+    <div class="chips" id="foodChips"></div>
+    <div class="addrow">
+      <input type="text" id="foodNew" placeholder="Add your own craving…" maxlength="30">
+      <button class="btn mini" type="button" id="foodAdd">Add 🍴</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>🎠 What are we doing?</h2>
+    <p class="sub">Everything you pick becomes a slot in the schedule.</p>
+    <div class="chips" id="actChips"></div>
+    <div class="addrow">
+      <input type="text" id="actNew" placeholder="Add your own idea…" maxlength="30">
+      <button class="btn mini" type="button" id="actAdd">Add ✨</button>
+    </div>
+
+    <label class="field" for="order">Order of the day</label>
+    <select id="order">
+      <option value="food-first">Eat first, then play 🍽️➡️🎉</option>
+      <option value="fun-first">Play first, then eat 🎉➡️🍽️</option>
+      <option value="mixed">Mix it up 🔀</option>
+    </select>
+  </section>
+
+  <section class="card">
+    <h2>💌 Our schedule</h2>
+    <ul class="schedule" id="schedule"></ul>
+    <p class="empty" id="schedEmpty">Pick a few things and the plan appears here ✨</p>
+
+    <label class="field" for="notes">Sweet notes</label>
+    <textarea id="notes" placeholder="Wear something comfy, I have a surprise 🎁"></textarea>
+
+    <div class="savebar" style="margin-top:18px">
+      <button class="btn" type="button" id="save">Save to our calendar 💖</button>
+      <a class="btn ghost" href="calendar.html">See the calendar</a>
+    </div>
+    <p class="hint" id="hint"></p>
+  </section>
+
+</main>
+
+<script src="assets/cute.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  Cute.buildSky(16);
+
+  var FOODS = [
+    "🍣 Sushi", "🍕 Pizza", "🍜 Ramen", "🥞 Brunch", "🍔 Burgers", "🥙 Souvlaki",
+    "🌮 Tacos", "🍝 Pasta", "🍦 Ice cream", "🧁 Dessert", "☕ Coffee", "🥗 Something green"
+  ];
+
+  var ACTS = [
+    "🎬 Cinema", "🌊 Walk by the sea", "🧺 Picnic", "👾 Arcade", "🖼️ Museum",
+    "🎶 Live music", "🎳 Bowling", "🎤 Karaoke", "🎲 Board games", "🌅 Sunset spot",
+    "💃 Dancing", "🌌 Stargazing", "👩‍🍳 Cooking together", "🛍️ Window shopping"
+  ];
+
+  var picked = { food: [], acts: [] };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- chips ---------- */
+
+  function makeChip(label, bucket, custom) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.setAttribute("aria-pressed", "false");
+    b.textContent = label;
+
+    b.addEventListener("click", function () {
+      var on = b.getAttribute("aria-pressed") === "true";
+      b.setAttribute("aria-pressed", on ? "false" : "true");
+
+      var list = picked[bucket];
+      if (on) {
+        list.splice(list.indexOf(label), 1);
+      } else {
+        list.push(label);
+        var r = b.getBoundingClientRect();
+        Cute.burst(r.left + r.width / 2, r.top + r.height / 2, 5);
+      }
+      render();
+    });
+
+    if (custom) b.setAttribute("data-custom", "1");
+    return b;
+  }
+
+  function fill(containerId, items, bucket) {
+    var box = $(containerId);
+    items.forEach(function (label) { box.appendChild(makeChip(label, bucket)); });
+  }
+
+  fill("foodChips", FOODS, "food");
+  fill("actChips", ACTS, "acts");
+
+  function wireAdd(inputId, btnId, containerId, bucket) {
+    function add() {
+      var val = $(inputId).value.trim();
+      if (!val) return;
+      var chip = makeChip(val, bucket, true);
+      $(containerId).appendChild(chip);
+      chip.click();
+      $(inputId).value = "";
+    }
+    $(btnId).addEventListener("click", add);
+    $(inputId).addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); add(); }
+    });
+  }
+
+  wireAdd("foodNew", "foodAdd", "foodChips", "food");
+  wireAdd("actNew", "actAdd", "actChips", "acts");
+
+  /* ---------- schedule building ---------- */
+
+  function minutesToHHMM(mins) {
+    var m = ((mins % 1440) + 1440) % 1440;
+    return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+  }
+
+  function buildSchedule() {
+    var start = ($("time").value || "18:00").split(":").map(Number);
+    var t = start[0] * 60 + start[1];
+    var items = [];
+
+    var place = $("place").value.trim();
+    items.push({ mins: 20, what: "Meet up 🥰", note: place || "wherever you are" });
+
+    var food = picked.food.map(function (f) { return { what: f, note: "food time!", mins: 80 }; });
+    var acts = picked.acts.map(function (a) { return { what: a, note: "our thing 💫", mins: 70 }; });
+
+    var order = $("order").value;
+    var mid;
+
+    if (order === "food-first") {
+      mid = food.concat(acts);
+    } else if (order === "fun-first") {
+      mid = acts.concat(food);
+    } else {
+      mid = [];
+      var i = 0;
+      while (i < Math.max(food.length, acts.length)) {
+        if (acts[i]) mid.push(acts[i]);
+        if (food[i]) mid.push(food[i]);
+        i++;
+      }
+    }
+
+    items = items.concat(mid);
+
+    if (mid.length) {
+      items.push({ mins: 30, what: "A slow walk home 🌙", note: "the best part" });
+    }
+
+    return items.map(function (it) {
+      var at = minutesToHHMM(t);
+      t += it.mins;
+      return { time: at, what: it.what, note: it.note };
+    });
+  }
+
+  function render() {
+    var list = buildSchedule();
+    var ul = $("schedule");
+    ul.innerHTML = "";
+
+    var nothingPicked = !picked.food.length && !picked.acts.length;
+    $("schedEmpty").style.display = nothingPicked ? "block" : "none";
+    if (nothingPicked) return;
+
+    list.forEach(function (row) {
+      var li = document.createElement("li");
+
+      var when = document.createElement("span");
+      when.className = "when";
+      when.textContent = Cute.prettyTime(row.time);
+
+      var what = document.createElement("span");
+      what.className = "what";
+      what.textContent = row.what;
+
+      var note = document.createElement("small");
+      note.className = "note";
+      note.textContent = row.note;
+      what.appendChild(note);
+
+      li.appendChild(when);
+      li.appendChild(what);
+      ul.appendChild(li);
+    });
+  }
+
+  ["time", "place", "order"].forEach(function (id) {
+    $(id).addEventListener("input", render);
+    $(id).addEventListener("change", render);
+  });
+
+  /* ---------- defaults ---------- */
+
+  $("date").value = Cute.todayISO();
+  $("date").min = "1900-01-01";
+
+  try {
+    var yes = JSON.parse(localStorage.getItem("cutedate.saidYes") || "null");
+    if (yes && yes.dodges > 0) {
+      $("yesLine").textContent =
+        "You tried to escape " + yes.dodges + " time" + (yes.dodges === 1 ? "" : "s") +
+        " and still said yes 💘 Let's plan it!";
+    }
+  } catch (err) { /* ignore */ }
+
+  render();
+
+  /* ---------- save ---------- */
+
+  $("save").addEventListener("click", function (e) {
+    var day = $("date").value;
+    if (!day) {
+      $("hint").textContent = "Pick a day first, please 🥺";
+      $("date").focus();
+      return;
+    }
+    if (!picked.food.length && !picked.acts.length) {
+      $("hint").textContent = "Choose at least one snack or one activity 🍓";
+      return;
+    }
+
+    Cute.addDate({
+      title: $("title").value.trim() || "Our date 💗",
+      date: day,
+      time: $("time").value || "18:00",
+      place: $("place").value.trim(),
+      foods: picked.food.slice(),
+      activities: picked.acts.slice(),
+      notes: $("notes").value.trim(),
+      schedule: buildSchedule()
+    });
+
+    Cute.burst(e.clientX || window.innerWidth / 2, e.clientY || window.innerHeight / 2, 45);
+    $("hint").textContent = "Saved! Taking you to the calendar… 💌";
+    setTimeout(function () { window.location.href = "calendar.html"; }, 900);
+  });
+})();
+</script>
+</body>
+</html>

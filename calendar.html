@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Our date calendar 📅</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  .monthname { font-family: var(--font-cute); font-size: 1.4rem; font-weight: 800; color: var(--pink-600); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: .85rem; color: var(--plum-soft); }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 5px; vertical-align: -2px; margin-right: 5px; }
+  .sw-up { background: linear-gradient(160deg, var(--pink-300), var(--pink-500)); }
+  .sw-past { background: linear-gradient(160deg, var(--lav), #b9a4ee); }
+
+  dialog {
+    border: none;
+    border-radius: 26px;
+    padding: 0;
+    max-width: 460px;
+    width: calc(100% - 32px);
+    box-shadow: var(--shadow-lg);
+    background: var(--cream);
+  }
+  dialog::backdrop { background: rgba(190, 120, 160, .35); backdrop-filter: blur(3px); }
+  .dlg { padding: 22px; }
+  .dlg h2 { color: var(--pink-600); }
+</style>
+</head>
+<body>
+
+<div class="sky" aria-hidden="true"></div>
+
+<div class="topbar">
+  <a class="brand" href="index.html">💗 Our Date App</a>
+  <div class="navlinks">
+    <a class="btn mini" href="plan.html">➕ New date</a>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section class="card">
+    <div class="calhead">
+      <button class="btn ghost mini" type="button" id="prev">‹ Prev</button>
+      <span class="monthname" id="monthname">—</span>
+      <button class="btn ghost mini" type="button" id="next">Next ›</button>
+    </div>
+
+    <div class="calgrid" id="dow"></div>
+    <div class="calgrid" id="grid" style="margin-top:8px"></div>
+
+    <div class="legend">
+      <span><i class="swatch sw-up"></i>upcoming date</span>
+      <span><i class="swatch sw-past"></i>date we already had</span>
+      <span id="total" class="count"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>💫 Coming up</h2>
+    <div class="datelist" id="upcoming"></div>
+    <p class="empty" id="upEmpty">No dates planned yet &mdash; <a href="plan.html">let&rsquo;s fix that</a> 💕</p>
+  </section>
+
+  <section class="card">
+    <h2>📖 Our little history</h2>
+    <div class="datelist" id="past"></div>
+    <p class="empty" id="pastEmpty">Our story starts with the first one ✨</p>
+  </section>
+
+</main>
+
+<dialog id="dlg">
+  <div class="dlg" id="dlgBody"></div>
+</dialog>
+
+<script src="assets/cute.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  Cute.buildSky(14);
+
+  var $ = function (id) { return document.getElementById(id); };
+  var view = new Date();
+  view.setDate(1);
+
+  var DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  DOW.forEach(function (d) {
+    var el = document.createElement("div");
+    el.className = "dow";
+    el.textContent = d;
+    $("dow").appendChild(el);
+  });
+
+  function iso(y, m, d) {
+    return y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  }
+
+  function byDay() {
+    var map = {};
+    Cute.loadDates().forEach(function (d) {
+      (map[d.date] = map[d.date] || []).push(d);
+    });
+    return map;
+  }
+
+  function isPast(dateStr, time) {
+    var p = dateStr.split("-").map(Number);
+    var t = (time || "23:59").split(":").map(Number);
+    return new Date(p[0], p[1] - 1, p[2], t[0], t[1]).getTime() < Date.now();
+  }
+
+  /* ---------- month grid ---------- */
+
+  function renderMonth() {
+    var y = view.getFullYear();
+    var m = view.getMonth();
+    var map = byDay();
+
+    $("monthname").textContent = view.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+    var grid = $("grid");
+    grid.innerHTML = "";
+
+    var first = new Date(y, m, 1);
+    var lead = (first.getDay() + 6) % 7;          // Monday-first
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var prevDays = new Date(y, m, 0).getDate();
+    var today = Cute.todayISO();
+
+    var cells = [];
+    for (var i = 0; i < lead; i++) {
+      cells.push({ n: prevDays - lead + 1 + i, muted: true });
+    }
+    for (var d = 1; d <= daysInMonth; d++) {
+      cells.push({ n: d, muted: false, key: iso(y, m, d) });
+    }
+    var trail = 1;
+    while (cells.length % 7 !== 0) {
+      cells.push({ n: trail++, muted: true });
+    }
+
+    cells.forEach(function (c) {
+      var el = document.createElement("div");
+      el.className = "day" + (c.muted ? " muted" : "");
+      el.textContent = c.n;
+
+      if (!c.muted) {
+        if (c.key === today) el.classList.add("today");
+
+        var here = map[c.key];
+        if (here && here.length) {
+          el.classList.add("has");
+          if (here.every(function (x) { return isPast(x.date, x.time); })) el.classList.add("past");
+
+          var pip = document.createElement("span");
+          pip.className = "pip";
+          pip.textContent = here.length > 1 ? "💕".repeat(Math.min(here.length, 3)) : "💗";
+          el.appendChild(pip);
+
+          el.title = here.map(function (x) { return x.title; }).join(", ");
+          el.addEventListener("click", function () { openDay(c.key, here); });
+        }
+      }
+      grid.appendChild(el);
+    });
+  }
+
+  /* ---------- lists ---------- */
+
+  function card(entry) {
+    var box = document.createElement("div");
+    box.className = "dateitem";
+
+    var h = document.createElement("h3");
+    h.textContent = entry.title;
+
+    var meta = document.createElement("p");
+    meta.className = "meta";
+    meta.textContent = Cute.prettyDate(entry.date) + " • " + Cute.prettyTime(entry.time) +
+      (entry.place ? " • " + entry.place : "");
+
+    var tags = document.createElement("div");
+    tags.className = "tags";
+    (entry.foods || []).forEach(function (f) {
+      var t = document.createElement("span");
+      t.className = "tag food";
+      t.textContent = f;
+      tags.appendChild(t);
+    });
+    (entry.activities || []).forEach(function (a) {
+      var t = document.createElement("span");
+      t.className = "tag act";
+      t.textContent = a;
+      tags.appendChild(t);
+    });
+
+    var row = document.createElement("div");
+    row.className = "pillrow";
+
+    var open = document.createElement("button");
+    open.className = "btn ghost mini";
+    open.type = "button";
+    open.textContent = "See the plan 💌";
+    open.addEventListener("click", function () { openDay(entry.date, [entry]); });
+
+    row.appendChild(open);
+
+    box.appendChild(h);
+    box.appendChild(meta);
+    box.appendChild(tags);
+    box.appendChild(row);
+    return box;
+  }
+
+  function renderLists() {
+    var all = Cute.loadDates().sort(function (a, b) {
+      return (a.date + a.time).localeCompare(b.date + b.time);
+    });
+
+    var up = all.filter(function (d) { return !isPast(d.date, d.time); });
+    var old = all.filter(function (d) { return isPast(d.date, d.time); }).reverse();
+
+    $("upcoming").innerHTML = "";
+    $("past").innerHTML = "";
+    up.forEach(function (d) { $("upcoming").appendChild(card(d)); });
+    old.forEach(function (d) { $("past").appendChild(card(d)); });
+
+    $("upEmpty").style.display = up.length ? "none" : "block";
+    $("pastEmpty").style.display = old.length ? "none" : "block";
+
+    $("total").textContent = all.length
+      ? all.length + (all.length === 1 ? " date 💖" : " dates 💖")
+      : "";
+  }
+
+  /* ---------- detail dialog ---------- */
+
+  function openDay(key, entries) {
+    var body = $("dlgBody");
+    body.innerHTML = "";
+
+    var head = document.createElement("h2");
+    head.textContent = Cute.prettyDate(key);
+    body.appendChild(head);
+
+    entries.forEach(function (entry) {
+      var t = document.createElement("p");
+      t.className = "sub";
+      t.style.margin = "2px 0 10px";
+      t.innerHTML = "<strong>" + escapeHTML(entry.title) + "</strong> · " + Cute.prettyTime(entry.time) +
+        (entry.place ? " · " + escapeHTML(entry.place) : "");
+      body.appendChild(t);
+
+      var ul = document.createElement("ul");
+      ul.className = "schedule";
+      (entry.schedule || []).forEach(function (row) {
+        var li = document.createElement("li");
+        var when = document.createElement("span");
+        when.className = "when";
+        when.textContent = Cute.prettyTime(row.time);
+        var what = document.createElement("span");
+        what.className = "what";
+        what.textContent = row.what;
+        if (row.note) {
+          var n = document.createElement("small");
+          n.className = "note";
+          n.textContent = row.note;
+          what.appendChild(n);
+        }
+        li.appendChild(when);
+        li.appendChild(what);
+        ul.appendChild(li);
+      });
+      body.appendChild(ul);
+
+      if (entry.notes) {
+        var n2 = document.createElement("p");
+        n2.className = "sub";
+        n2.textContent = "💌 " + entry.notes;
+        body.appendChild(n2);
+      }
+
+      var del = document.createElement("button");
+      del.className = "btn ghost mini";
+      del.type = "button";
+      del.textContent = "Remove this date 🗑️";
+      del.addEventListener("click", function () {
+        if (!confirm("Remove “" + entry.title + "”?")) return;
+        Cute.removeDate(entry.id);
+        $("dlg").close();
+        renderMonth();
+        renderLists();
+      });
+      body.appendChild(del);
+
+      var hr = document.createElement("hr");
+      hr.style.cssText = "border:none;border-top:2px dashed var(--pink-200);margin:16px 0";
+      body.appendChild(hr);
+    });
+
+    var close = document.createElement("button");
+    close.className = "btn mini";
+    close.type = "button";
+    close.textContent = "Close 💗";
+    close.addEventListener("click", function () { $("dlg").close(); });
+    body.appendChild(close);
+
+    $("dlg").showModal();
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* ---------- nav ---------- */
+
+  $("prev").addEventListener("click", function () {
+    view.setMonth(view.getMonth() - 1);
+    renderMonth();
+  });
+
+  $("next").addEventListener("click", function () {
+    view.setMonth(view.getMonth() + 1);
+    renderMonth();
+  });
+
+  renderMonth();
+  renderLists();
+})();
+</script>
+</body>
+</html>
