@@ -87,6 +87,8 @@
 </dialog>
 
 <script src="assets/cute.js"></script>
+<script src="assets/firebase-config.js"></script>
+<script src="assets/sync.js"></script>
 <script>
 (function () {
   "use strict";
@@ -346,6 +348,12 @@
 
   renderMonth();
   renderLists();
+
+  // dates arriving from the other device redraw the page as they land
+  Cute.onChange(function () {
+    renderMonth();
+    renderLists();
+  });
 })();
 </script>
 </body>

@@ -39,8 +39,56 @@ It also works as-is on GitHub Pages (Settings → Pages → deploy from `main`, 
 
 ## Where the data lives
 
-Saved dates go into the browser's `localStorage` under `cutedate.dates.v1` — no server,
-no accounts, nothing leaves the device. Clearing site data clears the dates.
+Saved dates go into the browser's `localStorage` under `cutedate.dates.v1`. That copy is what
+draws the pages, so the app is instant and works with no connection — but on its own it lives
+in **one browser on one device**, and clearing site data clears the dates.
+
+Turn on syncing (below) and that same local copy is mirrored to Firebase, so the dates survive
+a wiped browser, a new phone, and show up for both of you.
+
+## Making the dates permanent (Firebase)
+
+Fifteen minutes, free, and the app keeps working exactly as it does now while you set it up.
+
+1. **Create the project.** [console.firebase.google.com](https://console.firebase.google.com) →
+   *Add project*. Google Analytics is not needed.
+2. **Create the database.** *Build → Realtime Database → Create database*. Pick the region
+   closest to you and start in **locked mode** — the rules in step 5 open it up for just you two.
+3. **Turn on Google sign-in.** *Build → Authentication → Get started → Google → Enable*, then save.
+4. **Register the web app and copy the config.** *Project settings → General → Your apps →
+   Web (`</>`)*. Copy the `firebaseConfig` values into [assets/firebase-config.js](assets/firebase-config.js) —
+   `apiKey`, `authDomain`, `databaseURL`, `projectId` and `appId`. These values are public by
+   design; they name the project, they don't grant access.
+5. **Lock the database to your two accounts.** *Realtime Database → Rules*, paste this, replacing
+   the two addresses with the Google accounts that should have access, then *Publish*:
+
+   ```json
+   {
+     "rules": {
+       "spaces": {
+         "$space": {
+           ".read":  "auth != null && auth.token.email_verified == true && (auth.token.email == 'you@gmail.com' || auth.token.email == 'her@gmail.com')",
+           ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'you@gmail.com' || auth.token.email == 'her@gmail.com')"
+         }
+       }
+     }
+   }
+   ```
+
+6. **Allow the site to sign in.** *Authentication → Settings → Authorized domains → Add domain* →
+   `iliaspa.github.io`. (`localhost` is already allowed, for testing.)
+7. **Push, then open the calendar** and press **Sync my dates ☁️** in the top bar. Sign in once per
+   device. Everything already saved in that browser is uploaded on the first sync.
+
+### How the syncing behaves
+
+- The browser copy is always drawn first, so the app never waits on the network and works offline.
+  Changes made offline upload the next time it connects.
+- Each date carries the time it was last changed; if the same date is edited on both phones, the
+  **most recent edit wins**.
+- Deleting leaves a tombstone rather than just dropping the record — otherwise the other device
+  would helpfully sync it back.
+- Not signed in, or no config filled in? The app behaves exactly as it always has, saving locally.
 
 ## Files
 
@@ -50,7 +98,9 @@ no accounts, nothing leaves the device. Clearing site data clears the dates.
 | `plan.html` | Date / food / activity picker and live schedule builder |
 | `calendar.html` | Month calendar, past & future dates, date details |
 | `assets/styles.css` | Shared pastel styling |
-| `assets/cute.js` | Floating background, confetti, and the localStorage helpers |
+| `assets/cute.js` | Floating background, confetti, and the local date storage |
+| `assets/sync.js` | Mirrors the local dates to Firebase (dormant until configured) |
+| `assets/firebase-config.js` | Your Firebase project details — the one file you edit to switch syncing on |
 | `assets/favicon.*` | The little heart icon (`.ico` for older browsers, `.svg` for the rest) |
 
 Made with far too many hearts 💘

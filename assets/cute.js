@@ -68,31 +68,67 @@
 
   const KEY = "cutedate.dates.v1";
 
-  function loadDates() {
+  /* Everything on disk, tombstones included. */
+  function loadAll() {
+    var list;
     try {
       const raw = localStorage.getItem(KEY);
-      const list = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? list : [];
+      list = raw ? JSON.parse(raw) : [];
     } catch (err) {
       return [];
     }
+    if (!Array.isArray(list)) return [];
+
+    // dates saved before syncing existed have no clock on them
+    list.forEach(function (d) {
+      if (!d.updated) d.updated = Date.parse(d.edited || d.created) || 1;
+    });
+    return list;
+  }
+
+  /* The dates worth showing. */
+  function loadDates() {
+    return loadAll().filter(function (d) { return !d.deleted; });
   }
 
   function saveDates(list) {
     localStorage.setItem(KEY, JSON.stringify(list));
   }
 
+  /* Anyone who cares when the dates change (the calendar, the sync layer). */
+  var listeners = [];
+
+  function onChange(fn) { listeners.push(fn); }
+
+  function announce() {
+    listeners.forEach(function (fn) {
+      try { fn(); } catch (err) { /* one bad listener shouldn't stop the rest */ }
+    });
+  }
+
   function addDate(entry) {
-    const list = loadDates();
+    const list = loadAll();
     entry.id = "d" + Date.now() + Math.random().toString(36).slice(2, 7);
     entry.created = new Date().toISOString();
+    entry.updated = Date.now();
     list.push(entry);
     saveDates(list);
+    announce();
     return entry;
   }
 
+  /* Deleting leaves a tombstone behind: without it, a delete on this device
+     would simply be undone by the next sync from the other device. */
   function removeDate(id) {
-    saveDates(loadDates().filter(function (d) { return d.id !== id; }));
+    var list = loadAll();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id !== id) continue;
+      list[i].deleted = true;
+      list[i].updated = Date.now();
+      saveDates(list);
+      announce();
+      return;
+    }
   }
 
   function findDate(id) {
@@ -102,15 +138,62 @@
   }
 
   function updateDate(id, patch) {
-    var list = loadDates();
+    var list = loadAll();
     for (var i = 0; i < list.length; i++) {
       if (list[i].id !== id) continue;
       Object.keys(patch).forEach(function (k) { list[i][k] = patch[k]; });
       list[i].edited = new Date().toISOString();
+      list[i].updated = Date.now();
       saveDates(list);
+      announce();
       return list[i];
     }
     return null;
+  }
+
+  /* ---------- merging with a remote copy ---------- */
+
+  /* Newest edit wins, per date. Returns how many local records changed. */
+  function mergeRemote(remote) {
+    var list = loadAll();
+    var byId = {};
+    list.forEach(function (d) { byId[d.id] = d; });
+
+    var changed = 0;
+
+    Object.keys(remote || {}).forEach(function (id) {
+      var incoming = remote[id];
+      if (!incoming || !incoming.id) return;
+
+      incoming.foods = incoming.foods || [];
+      incoming.activities = incoming.activities || [];
+      incoming.schedule = incoming.schedule || [];
+      incoming.updated = incoming.updated || 1;
+
+      var mine = byId[id];
+      if (!mine) {
+        list.push(incoming);
+        changed++;
+      } else if ((mine.updated || 1) < incoming.updated) {
+        list[list.indexOf(mine)] = incoming;
+        changed++;
+      }
+    });
+
+    if (changed) {
+      saveDates(list);
+      announce();
+    }
+    return changed;
+  }
+
+  /* Which local records the remote copy is missing or behind on. */
+  function pendingPush(remote) {
+    var map = remote || {};
+    return loadAll().filter(function (d) {
+      var there = map[d.id];
+      return !there || (there.updated || 1) < (d.updated || 1);
+    });
   }
 
   /* ---------- date formatting ---------- */
@@ -143,11 +226,15 @@
     buildSky: buildSky,
     burst: burst,
     loadDates: loadDates,
+    loadAll: loadAll,
     saveDates: saveDates,
     addDate: addDate,
     removeDate: removeDate,
     findDate: findDate,
     updateDate: updateDate,
+    mergeRemote: mergeRemote,
+    pendingPush: pendingPush,
+    onChange: onChange,
     todayISO: todayISO,
     prettyDate: prettyDate,
     prettyTime: prettyTime

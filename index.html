@@ -1,482 +1,616 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Will you go on a date with me? 💗</title>
-<link rel="icon" href="assets/favicon.ico" sizes="any">
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="assets/heart-180.png">
-<link rel="stylesheet" href="assets/styles.css">
-<style>
-  .ask {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
-  }
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1"
+    />
+    <title>Will you go on a date with me? 💗</title>
+    <link rel="icon" href="assets/favicon.ico" sizes="any" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/heart-180.png" />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <style>
+      .ask {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+      }
 
-  .askcard {
-    position: relative;
-    z-index: 1;
-    text-align: center;
-    max-width: 620px;
-    width: 100%;
-    background: rgba(255, 253, 252, .88);
-    backdrop-filter: blur(10px);
-    border: 3px solid #fff;
-    border-radius: 34px;
-    box-shadow: var(--shadow-lg);
-    padding: 34px 26px 30px;
-  }
+      .askcard {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        max-width: 620px;
+        width: 100%;
+        background: rgba(255, 253, 252, 0.88);
+        backdrop-filter: blur(10px);
+        border: 3px solid #fff;
+        border-radius: 34px;
+        box-shadow: var(--shadow-lg);
+        padding: 34px 26px 30px;
+      }
 
-  .mascot { font-size: 3.6rem; display: block; animation: bob 2.6s ease-in-out infinite; }
-  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-10px) rotate(3deg); } }
-
-  .askcard .lead {
-    font-weight: 800;
-    font-size: 1.05rem;
-    color: var(--plum);
-    margin: 0 0 14px;
-  }
-
-  .askcard h1 {
-    color: var(--pink-600);
-    text-shadow: 0 3px 0 #fff, 0 8px 18px rgba(240, 90, 150, .25);
-  }
-
-  /* one message at a time: the old line lifts away before the new one lands */
-  .taunt {
-    display: grid;
-    place-items: center;
-    min-height: 3.2em;
-    margin: 6px 0 4px;
-    overflow: hidden;
-  }
-
-  .taunt .line {
-    grid-area: 1 / 1;
-    font-weight: 700;
-    color: var(--plum-soft);
-    animation: lineIn .4s cubic-bezier(.22, .9, .3, 1.2) .12s both;
-  }
-
-  .taunt .line.out {
-    animation: lineOut .22s ease forwards;
-    pointer-events: none;
-  }
-
-  @keyframes lineIn {
-    from { opacity: 0; transform: translateY(16px) scale(.92) rotate(-1.5deg); }
-    to   { opacity: 1; transform: none; }
-  }
-
-  @keyframes lineOut {
-    to { opacity: 0; transform: translateY(-16px) scale(.92) rotate(1.5deg); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .taunt .line { animation: none; }
-    .taunt .line.out { display: none; }
-  }
-
-  .btnarea {
-    position: relative;
-    min-height: 190px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    flex-wrap: wrap;
-    margin-top: 10px;
-  }
-
-  #yesBtn {
-    font-size: 1.25rem;
-    padding: 16px 40px;
-    transform-origin: center center;
-    animation: heartbeat 1.8s ease-in-out infinite;
-    will-change: transform;
-  }
-
-  @keyframes heartbeat {
-    0%, 100% { filter: brightness(1); }
-    50%      { filter: brightness(1.12); }
-  }
-
-  #noSlot { width: 132px; height: 54px; }
-
-  #noBtn {
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 4;
-    font-size: 1.05rem;
-    padding: 14px 28px;
-    background: linear-gradient(160deg, #a9c6ff, #7f9dff);
-    box-shadow: var(--shadow-sm), inset 0 -4px 0 rgba(0, 0, 0, .12);
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    will-change: transform;
-    transition: none; /* the physics loop owns this transform */
-  }
-
-  /* celebration overlay */
-  .yay {
-    position: fixed;
-    inset: 0;
-    z-index: 20;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 10px;
-    background: radial-gradient(circle at 50% 45%, rgba(255,255,255,.96), rgba(255, 214, 235, .96));
-    text-align: center;
-    padding: 20px;
-  }
-
-  .yay.show { display: flex; animation: pop .45s ease; }
-  @keyframes pop { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
-
-  .yay .big { font-size: clamp(3rem, 14vw, 7rem); animation: bob 1.4s ease-in-out infinite; }
-  .yay h2 { font-size: clamp(1.6rem, 6vw, 2.6rem); color: var(--pink-600); }
-</style>
-</head>
-<body>
-
-<div class="sky" aria-hidden="true"></div>
-
-<main class="ask">
-  <section class="askcard">
-    <span class="mascot" aria-hidden="true">💐</span>
-    <h1>Will you go on a date with me?</h1>
-    <p class="lead"><strong>Take your time&hellip; you are free to answer whatever you want.</strong></p>
-    <div class="taunt" id="taunt" aria-live="polite"><span class="line">Pretty please? 🥺</span></div>
-
-    <div class="btnarea">
-      <button class="btn" id="yesBtn" type="button">YES 💖</button>
-      <div id="noSlot" aria-hidden="true"></div>
-    </div>
-  </section>
-</main>
-
-<button class="btn" id="noBtn" type="button">No</button>
-
-<div class="yay" id="yay" role="status">
-  <span class="big">🥳</span>
-  <h2>YAAAY! Best answer ever!</h2>
-  <p class="sub">Let&rsquo;s plan something adorable&hellip;</p>
-</div>
-
-<script src="assets/cute.js"></script>
-<script>
-(function () {
-  "use strict";
-
-  Cute.buildSky(20);
-
-  var noBtn  = document.getElementById("noBtn");
-  var noSlot = document.getElementById("noSlot");
-  var yesBtn = document.getElementById("yesBtn");
-  var taunt  = document.getElementById("taunt");
-
-  /* The first few appear in order, then it's a random shuffle forever. */
-  var TAUNTS = [
-    "Ooh, so close! 😯",
-    "It swims away, doesn't it? 🌊",
-    "You can't catch that one with your hands 🎣",
-    "Nope. Not today. 😌",
-    "That button is on my side 😼",
-    "Try the big one instead 👉",
-    "It's getting faster... 💨",
-    "Destiny says YES 💫",
-    "Your finger is no match for it 🐠",
-    "Okay, this is getting funny 😂",
-    "The YES is getting huge for a reason 🙃"
-  ];
-
-  var MORE = [
-    "Slippery little thing, isn't it? 🫧",
-    "Plot twist: it can't be clicked 🎬",
-    "Even my mouse gave up 🖱️",
-    "It has trust issues 😅",
-    "Zero out of " + "∞" + " catches 🏆",
-    "That one's just decoration 🎀",
-    "Are you sure you want that one? 🤨",
-    "It practiced all week for this 🏃",
-    "You're making it dizzy 😵‍💫",
-    "The other button loves you more 💗",
-    "It's a professional escape artist 🎩",
-    "Physics says no, hearts say yes 💘",
-    "One tiny click and it's dinner time 🍝",
-    "I put googly eyes on it, look 👀",
-    "It's shy, be gentle 🥺",
-    "Somewhere, a fish is proud 🐟",
-    "Your patience is adorable, though 🥰",
-    "Fine, keep trying — I'll wait 🍵",
-    "Rumour says it's ticklish 🤭",
-    "It has a black belt in dodging 🥋",
-    "Still not it 🙈",
-    "The YES is right there, all cozy 🛋️",
-    "Come on, one little yes? 🌷",
-    "It runs on stubbornness ⚡",
-    "Nice try! Truly. 👏"
-  ];
-
-  var lastLine = "";
-
-  function say(text) {
-    if (text === lastLine) return;
-    lastLine = text;
-
-    var current = taunt.querySelector(".line:not(.out)");
-    taunt.querySelectorAll(".line.out").forEach(function (n) { n.remove(); });
-
-    if (current) {
-      current.classList.add("out");
-      setTimeout(function () { current.remove(); }, 260);
-    }
-
-    var line = document.createElement("span");
-    line.className = "line";
-    line.textContent = text;
-    taunt.appendChild(line);
-  }
-
-  function nextTaunt(n) {
-    if (n - 1 < TAUNTS.length) return TAUNTS[n - 1];
-    var pool = MORE.filter(function (t) { return t !== lastLine; });
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-
-  /* ---------------- fish physics for the NO button ---------------- */
-
-  var st = {
-    x: 0, y: 0,          // top-left position, px (fixed coords)
-    vx: 0, vy: 0,        // velocity, px/s
-    agility: 1,          // grows with every attempt -> faster fish
-    parked: true,        // still sitting in its slot
-    phase: Math.random() * 100,
-    wobble: 0
-  };
-
-  var pointer = { x: -9999, y: -9999, active: false };
-  var attempts = 0;
-  var lastNear = 0;
-
-  function size() {
-    return { w: noBtn.offsetWidth, h: noBtn.offsetHeight };
-  }
-
-  function park() {
-    if (!st.parked) return;
-    var r = noSlot.getBoundingClientRect();
-    var s = size();
-    st.x = r.left + (r.width - s.w) / 2;
-    st.y = r.top + (r.height - s.h) / 2;
-    draw();
-  }
-
-  function draw() {
-    var tilt = Math.max(-14, Math.min(14, st.vx * 0.035)) + st.wobble;
-    noBtn.style.transform = "translate(" + st.x + "px," + st.y + "px) rotate(" + tilt + "deg)";
-  }
-
-  function clampToScreen() {
-    var s = size();
-    var pad = 6;
-    var maxX = window.innerWidth - s.w - pad;
-    var maxY = window.innerHeight - s.h - pad;
-
-    if (st.x < pad)  { st.x = pad;  st.vx = Math.abs(st.vx) * 0.85; }
-    if (st.y < pad)  { st.y = pad;  st.vy = Math.abs(st.vy) * 0.85; }
-    if (st.x > maxX) { st.x = maxX; st.vx = -Math.abs(st.vx) * 0.85; }
-    if (st.y > maxY) { st.y = maxY; st.vy = -Math.abs(st.vy) * 0.85; }
-  }
-
-  /* An attempt = a real click/tap on the fish, or a very close call.
-     pointerdown and click can both fire for one tap, so debounce them. */
-  var lastAttempt = -1000;
-
-  function registerAttempt(strong) {
-    var now = performance.now();
-    if (now - lastAttempt < 220) return;
-    lastAttempt = now;
-
-    attempts += 1;
-    st.agility = Math.min(4.6, st.agility + (strong ? 0.32 : 0.16));
-    st.parked = false;
-    growYes();
-    say(nextTaunt(attempts));
-  }
-
-  function flee(px, py, power) {
-    var s = size();
-    var cx = st.x + s.w / 2;
-    var cy = st.y + s.h / 2;
-    var dx = cx - px;
-    var dy = cy - py;
-    var d = Math.hypot(dx, dy) || 1;
-
-    // dart away, with a sideways kick so it curves like a fish
-    var ux = dx / d, uy = dy / d;
-    var kick = power * st.agility;
-    st.vx += ux * kick - uy * kick * 0.45;
-    st.vy += uy * kick + ux * kick * 0.45;
-    st.wobble = (Math.random() - 0.5) * 26;
-  }
-
-  var last = performance.now();
-
-  function tick(now) {
-    var dt = Math.min(0.05, (now - last) / 1000);
-    last = now;
-
-    if (!st.parked) {
-      var s = size();
-      var cx = st.x + s.w / 2;
-      var cy = st.y + s.h / 2;
-
-      // repel from the pointer when it gets close
-      if (pointer.active) {
-        var dx = cx - pointer.x;
-        var dy = cy - pointer.y;
-        var d = Math.hypot(dx, dy) || 1;
-        var radius = 150 + 26 * st.agility;
-
-        if (d < radius) {
-          var force = (1 - d / radius) * (1500 + 900 * st.agility);
-          st.vx += (dx / d) * force * dt;
-          st.vy += (dy / d) * force * dt;
-          st.wobble = Math.sin(now / 45) * (4 + st.agility * 3);
-
-          if (d < 46 && now - lastNear > 700) {
-            lastNear = now;
-            registerAttempt(false);
-            flee(pointer.x, pointer.y, 260);
-          }
+      .mascot {
+        font-size: 3.6rem;
+        display: block;
+        animation: bob 2.6s ease-in-out infinite;
+      }
+      @keyframes bob {
+        0%,
+        100% {
+          transform: translateY(0) rotate(-3deg);
+        }
+        50% {
+          transform: translateY(-10px) rotate(3deg);
         }
       }
 
-      // lazy swimming drift when nobody is chasing
-      st.phase += dt * (0.7 + st.agility * 0.25);
-      st.vx += Math.cos(st.phase * 1.7) * 26 * dt * st.agility;
-      st.vy += Math.sin(st.phase * 2.3) * 26 * dt * st.agility;
-
-      // roam around a slowly wandering "home" spot so it never parks on the YES
-      var homeX = window.innerWidth * (0.5 + 0.33 * Math.cos(st.phase * 0.6));
-      var homeY = window.innerHeight * (0.5 + 0.31 * Math.sin(st.phase * 0.47));
-      st.vx += (homeX - cx) * 0.55 * dt;
-      st.vy += (homeY - cy) * 0.55 * dt;
-
-      // drag + speed limit
-      var drag = Math.pow(0.14, dt);
-      st.vx *= drag;
-      st.vy *= drag;
-
-      var sp = Math.hypot(st.vx, st.vy);
-      var max = 420 + 340 * st.agility;
-      if (sp > max) { st.vx = st.vx / sp * max; st.vy = st.vy / sp * max; }
-
-      st.x += st.vx * dt;
-      st.y += st.vy * dt;
-      st.wobble *= Math.pow(0.02, dt);
-
-      clampToScreen();
-      draw();
-    }
-
-    requestAnimationFrame(tick);
-  }
-
-  requestAnimationFrame(tick);
-
-  /* ---------------- input ---------------- */
-
-  window.addEventListener("pointermove", function (e) {
-    pointer.x = e.clientX;
-    pointer.y = e.clientY;
-    pointer.active = true;
-
-    if (st.parked) {
-      var r = noBtn.getBoundingClientRect();
-      var near =
-        e.clientX > r.left - 110 && e.clientX < r.right + 110 &&
-        e.clientY > r.top - 110 && e.clientY < r.bottom + 110;
-      if (near) {
-        st.parked = false;
-        flee(e.clientX, e.clientY, 300);
+      .askcard .lead {
+        font-weight: 800;
+        font-size: 1.05rem;
+        color: var(--plum);
+        margin: 0 0 14px;
       }
-    }
-  }, { passive: true });
 
-  window.addEventListener("pointerdown", function (e) {
-    pointer.x = e.clientX;
-    pointer.y = e.clientY;
-    pointer.active = true;
-  }, { passive: true });
+      .askcard h1 {
+        color: var(--pink-600);
+        text-shadow:
+          0 3px 0 #fff,
+          0 8px 18px rgba(240, 90, 150, 0.25);
+      }
 
-  // Touch users never hover: bail out the instant a finger lands on it.
-  noBtn.addEventListener("pointerdown", function (e) {
-    e.preventDefault();
-    registerAttempt(true);
-    flee(e.clientX, e.clientY, 480);
-    Cute.burst(e.clientX, e.clientY, 6);
-  });
+      /* one message at a time: the old line lifts away before the new one lands */
+      .taunt {
+        display: grid;
+        place-items: center;
+        min-height: 3.2em;
+        margin: 6px 0 4px;
+        overflow: hidden;
+      }
 
-  noBtn.addEventListener("click", function (e) {
-    e.preventDefault();
-    registerAttempt(true);
-    flee(e.clientX || st.x, e.clientY || st.y, 520);
-  });
+      .taunt .line {
+        grid-area: 1 / 1;
+        font-weight: 700;
+        color: var(--plum-soft);
+        animation: lineIn 0.4s cubic-bezier(0.22, 0.9, 0.3, 1.2) 0.12s both;
+      }
 
-  window.addEventListener("resize", function () {
-    if (st.parked) park(); else clampToScreen();
-  });
+      .taunt .line.out {
+        animation: lineOut 0.22s ease forwards;
+        pointer-events: none;
+      }
 
-  /* ---------------- the ever-growing YES ---------------- */
+      @keyframes lineIn {
+        from {
+          opacity: 0;
+          transform: translateY(16px) scale(0.92) rotate(-1.5deg);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
 
-  var baseW = 0;
+      @keyframes lineOut {
+        to {
+          opacity: 0;
+          transform: translateY(-16px) scale(0.92) rotate(1.5deg);
+        }
+      }
 
-  function growYes() {
-    if (!baseW) baseW = yesBtn.offsetWidth;
+      @media (prefers-reduced-motion: reduce) {
+        .taunt .line {
+          animation: none;
+        }
+        .taunt .line.out {
+          display: none;
+        }
+      }
 
-    // logarithmic growth: fast at first, then a gentle, endless swell
-    var scale = 1 + 0.62 * Math.log(1 + attempts);
-    var roomW = (window.innerWidth * 0.92) / baseW;
-    var roomH = (window.innerHeight * 0.55) / yesBtn.offsetHeight;
-    scale = Math.min(scale, roomW, roomH);
+      .btnarea {
+        position: relative;
+        min-height: 190px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
 
-    yesBtn.style.transform = "scale(" + scale + ")";
-    yesBtn.style.boxShadow =
-      "0 " + (10 + attempts) + "px " + (30 + attempts * 3) + "px rgba(215,90,150,.3), inset 0 -4px 0 rgba(0,0,0,.12)";
-  }
+      #yesBtn {
+        font-size: 1.25rem;
+        padding: 16px 40px;
+        transform-origin: center center;
+        animation: heartbeat 1.8s ease-in-out infinite;
+        will-change: transform;
+      }
 
-  yesBtn.addEventListener("click", function (e) {
-    var r = yesBtn.getBoundingClientRect();
-    Cute.burst(r.left + r.width / 2, r.top + r.height / 2, 60);
-    Cute.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
+      @keyframes heartbeat {
+        0%,
+        100% {
+          filter: brightness(1);
+        }
+        50% {
+          filter: brightness(1.12);
+        }
+      }
 
-    document.getElementById("yay").classList.add("show");
-    noBtn.style.display = "none";
+      #noSlot {
+        width: 132px;
+        height: 54px;
+      }
 
-    try {
-      localStorage.setItem("cutedate.saidYes", JSON.stringify({
-        at: new Date().toISOString(), dodges: attempts
-      }));
-    } catch (err) { /* private mode: no big deal */ }
+      #noBtn {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 4;
+        font-size: 1.05rem;
+        padding: 14px 28px;
+        background: linear-gradient(160deg, #a9c6ff, #7f9dff);
+        box-shadow:
+          var(--shadow-sm),
+          inset 0 -4px 0 rgba(0, 0, 0, 0.12);
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        will-change: transform;
+        transition: none; /* the physics loop owns this transform */
+      }
 
-    setTimeout(function () { window.location.href = "plan.html"; }, 1500);
-  });
+      /* celebration overlay */
+      .yay {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 10px;
+        background: radial-gradient(
+          circle at 50% 45%,
+          rgba(255, 255, 255, 0.96),
+          rgba(255, 214, 235, 0.96)
+        );
+        text-align: center;
+        padding: 20px;
+      }
 
-  /* ---------------- start ---------------- */
+      .yay.show {
+        display: flex;
+        animation: pop 0.45s ease;
+      }
+      @keyframes pop {
+        from {
+          opacity: 0;
+          transform: scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
 
-  window.addEventListener("load", park);
-  park();
-})();
-</script>
-</body>
+      .yay .big {
+        font-size: clamp(3rem, 14vw, 7rem);
+        animation: bob 1.4s ease-in-out infinite;
+      }
+      .yay h2 {
+        font-size: clamp(1.6rem, 6vw, 2.6rem);
+        color: var(--pink-600);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sky" aria-hidden="true"></div>
+
+    <main class="ask">
+      <section class="askcard">
+        <span class="mascot" aria-hidden="true">💐</span>
+        <h1>Will you go on a date with me?</h1>
+        <p class="lead">
+          <strong
+            >Take your time&hellip; you are free to answer whatever you
+            want.</strong
+          >
+        </p>
+        <div class="taunt" id="taunt" aria-live="polite">
+          <span class="line">Pretty please? 🥺</span>
+        </div>
+
+        <div class="btnarea">
+          <button class="btn" id="yesBtn" type="button">YES 💖</button>
+          <div id="noSlot" aria-hidden="true"></div>
+        </div>
+      </section>
+    </main>
+
+    <button class="btn" id="noBtn" type="button">No</button>
+
+    <div class="yay" id="yay" role="status">
+      <span class="big">🥳</span>
+      <h2>YAAAY! Best answer ever!</h2>
+      <p class="sub">Let&rsquo;s plan something adorable&hellip;</p>
+    </div>
+
+    <script src="assets/cute.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        Cute.buildSky(20);
+
+        var noBtn = document.getElementById("noBtn");
+        var noSlot = document.getElementById("noSlot");
+        var yesBtn = document.getElementById("yesBtn");
+        var taunt = document.getElementById("taunt");
+
+        /* The first few appear in order, then it's a random shuffle forever. */
+        var TAUNTS = [
+          "Ooh, so close! 😯",
+          "Nope. Not today. 😌",
+          "That button is on my side 😼",
+          "But the other button is so much cuter! 🥰",
+          "One tiny click and it's dinner time 🍝",
+          "Look at the other button, it's so cute! 🥰",
+          "Try the big one instead 👉",
+          "Are you sure you want to pick that one? 🤔",
+          "The YES is the right choice, I promise 🫶",
+          "Hey, the other button is lonely 😢",
+          "Are you sure you want that one? 🤨",
+          "Destiny says YES 💫",
+          "The other button loves you more 💗",
+          "Just one more click and it's a date! 🥰",
+          "Maybe the other button is more your style? 😏",
+          "Okay, this is getting funny 😂",
+          "Deep down you know the answer is YES 💖",
+          "The other button is cheering for you 📣",
+          "The YES is getting huge for a reason 🙃",
+          "Wait, don't you want to see what happens next? 👀",
+          "Very tempting, but the other button is even more tempting 😏",
+          "I can see your finger trembling 👆",
+          "The YES is right there, all cozy 🛋️",
+          "Come on, one little yes? 🌷",
+          "Quick, before it grows even bigger! 🐘",
+          "The YES is waiting for you patiently ⏳",
+        ];
+
+        var MORE = [
+          "You can do it! I believe in you 💪",
+          "Your finger is no match for it 👆",
+          "It's getting faster... 💨",
+          "It swims away, doesn't it? 🌊",
+          "You can't catch that one with your hands 🎣",
+          "Slippery little thing, isn't it? 🫧",
+          "Plot twist: it can't be clicked 🎬",
+          "Even my mouse gave up 🖱️",
+          "It has trust issues 😅",
+          "Zero out of " + "∞" + " catches 🏆",
+          "That one's just decoration 🎀",
+          "It practiced all week for this 🏃",
+          "You can try, but it won't work 😎",
+          "Every time you try, it gets faster ⚡",
+          "You're making it dizzy 😵‍💫",
+          "It's a professional escape artist 🎩",
+          "Physics says no, hearts say yes 💘",
+          "I put googly eyes on it, look 👀",
+          "It's shy, be gentle 🥺",
+          "Your patience is adorable, though 🥰",
+          "Fine, keep trying — I'll wait 🍵",
+          "Rumour says it's ticklish 🤭",
+          "It has a black belt in dodging 🥋",
+          "Still not it 🙈",
+          "It runs on stubbornness ⚡",
+          "Nice try! Truly. 👏",
+        ];
+
+        var lastLine = "";
+
+        function say(text) {
+          if (text === lastLine) return;
+          lastLine = text;
+
+          var current = taunt.querySelector(".line:not(.out)");
+          taunt.querySelectorAll(".line.out").forEach(function (n) {
+            n.remove();
+          });
+
+          if (current) {
+            current.classList.add("out");
+            setTimeout(function () {
+              current.remove();
+            }, 260);
+          }
+
+          var line = document.createElement("span");
+          line.className = "line";
+          line.textContent = text;
+          taunt.appendChild(line);
+        }
+
+        function nextTaunt(n) {
+          if (n - 1 < TAUNTS.length) return TAUNTS[n - 1];
+          var pool = MORE.filter(function (t) {
+            return t !== lastLine;
+          });
+          return pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        /* ---------------- fish physics for the NO button ---------------- */
+
+        var st = {
+          x: 0,
+          y: 0, // top-left position, px (fixed coords)
+          vx: 0,
+          vy: 0, // velocity, px/s
+          agility: 1, // grows with every attempt -> faster fish
+          parked: true, // still sitting in its slot
+          phase: Math.random() * 100,
+          wobble: 0,
+        };
+
+        var pointer = { x: -9999, y: -9999, active: false };
+        var attempts = 0;
+        var lastNear = 0;
+
+        function size() {
+          return { w: noBtn.offsetWidth, h: noBtn.offsetHeight };
+        }
+
+        function park() {
+          if (!st.parked) return;
+          var r = noSlot.getBoundingClientRect();
+          var s = size();
+          st.x = r.left + (r.width - s.w) / 2;
+          st.y = r.top + (r.height - s.h) / 2;
+          draw();
+        }
+
+        function draw() {
+          var tilt = Math.max(-14, Math.min(14, st.vx * 0.035)) + st.wobble;
+          noBtn.style.transform =
+            "translate(" + st.x + "px," + st.y + "px) rotate(" + tilt + "deg)";
+        }
+
+        function clampToScreen() {
+          var s = size();
+          var pad = 6;
+          var maxX = window.innerWidth - s.w - pad;
+          var maxY = window.innerHeight - s.h - pad;
+
+          if (st.x < pad) {
+            st.x = pad;
+            st.vx = Math.abs(st.vx) * 0.85;
+          }
+          if (st.y < pad) {
+            st.y = pad;
+            st.vy = Math.abs(st.vy) * 0.85;
+          }
+          if (st.x > maxX) {
+            st.x = maxX;
+            st.vx = -Math.abs(st.vx) * 0.85;
+          }
+          if (st.y > maxY) {
+            st.y = maxY;
+            st.vy = -Math.abs(st.vy) * 0.85;
+          }
+        }
+
+        /* An attempt = a real click/tap on the fish, or a very close call.
+     pointerdown and click can both fire for one tap, so debounce them. */
+        var lastAttempt = -1000;
+
+        function registerAttempt(strong) {
+          var now = performance.now();
+          if (now - lastAttempt < 220) return;
+          lastAttempt = now;
+
+          attempts += 1;
+          st.agility = Math.min(4.6, st.agility + (strong ? 0.32 : 0.16));
+          st.parked = false;
+          growYes();
+          say(nextTaunt(attempts));
+        }
+
+        function flee(px, py, power) {
+          var s = size();
+          var cx = st.x + s.w / 2;
+          var cy = st.y + s.h / 2;
+          var dx = cx - px;
+          var dy = cy - py;
+          var d = Math.hypot(dx, dy) || 1;
+
+          // dart away, with a sideways kick so it curves like a fish
+          var ux = dx / d,
+            uy = dy / d;
+          var kick = power * st.agility;
+          st.vx += ux * kick - uy * kick * 0.45;
+          st.vy += uy * kick + ux * kick * 0.45;
+          st.wobble = (Math.random() - 0.5) * 26;
+        }
+
+        var last = performance.now();
+
+        function tick(now) {
+          var dt = Math.min(0.05, (now - last) / 1000);
+          last = now;
+
+          if (!st.parked) {
+            var s = size();
+            var cx = st.x + s.w / 2;
+            var cy = st.y + s.h / 2;
+
+            // repel from the pointer when it gets close
+            if (pointer.active) {
+              var dx = cx - pointer.x;
+              var dy = cy - pointer.y;
+              var d = Math.hypot(dx, dy) || 1;
+              var radius = 150 + 26 * st.agility;
+
+              if (d < radius) {
+                var force = (1 - d / radius) * (1500 + 900 * st.agility);
+                st.vx += (dx / d) * force * dt;
+                st.vy += (dy / d) * force * dt;
+                st.wobble = Math.sin(now / 45) * (4 + st.agility * 3);
+
+                if (d < 46 && now - lastNear > 700) {
+                  lastNear = now;
+                  registerAttempt(false);
+                  flee(pointer.x, pointer.y, 260);
+                }
+              }
+            }
+
+            // lazy swimming drift when nobody is chasing
+            st.phase += dt * (0.7 + st.agility * 0.25);
+            st.vx += Math.cos(st.phase * 1.7) * 26 * dt * st.agility;
+            st.vy += Math.sin(st.phase * 2.3) * 26 * dt * st.agility;
+
+            // roam around a slowly wandering "home" spot so it never parks on the YES
+            var homeX =
+              window.innerWidth * (0.5 + 0.33 * Math.cos(st.phase * 0.6));
+            var homeY =
+              window.innerHeight * (0.5 + 0.31 * Math.sin(st.phase * 0.47));
+            st.vx += (homeX - cx) * 0.55 * dt;
+            st.vy += (homeY - cy) * 0.55 * dt;
+
+            // drag + speed limit
+            var drag = Math.pow(0.14, dt);
+            st.vx *= drag;
+            st.vy *= drag;
+
+            var sp = Math.hypot(st.vx, st.vy);
+            var max = 420 + 340 * st.agility;
+            if (sp > max) {
+              st.vx = (st.vx / sp) * max;
+              st.vy = (st.vy / sp) * max;
+            }
+
+            st.x += st.vx * dt;
+            st.y += st.vy * dt;
+            st.wobble *= Math.pow(0.02, dt);
+
+            clampToScreen();
+            draw();
+          }
+
+          requestAnimationFrame(tick);
+        }
+
+        requestAnimationFrame(tick);
+
+        /* ---------------- input ---------------- */
+
+        window.addEventListener(
+          "pointermove",
+          function (e) {
+            pointer.x = e.clientX;
+            pointer.y = e.clientY;
+            pointer.active = true;
+
+            if (st.parked) {
+              var r = noBtn.getBoundingClientRect();
+              var near =
+                e.clientX > r.left - 110 &&
+                e.clientX < r.right + 110 &&
+                e.clientY > r.top - 110 &&
+                e.clientY < r.bottom + 110;
+              if (near) {
+                st.parked = false;
+                flee(e.clientX, e.clientY, 300);
+              }
+            }
+          },
+          { passive: true },
+        );
+
+        window.addEventListener(
+          "pointerdown",
+          function (e) {
+            pointer.x = e.clientX;
+            pointer.y = e.clientY;
+            pointer.active = true;
+          },
+          { passive: true },
+        );
+
+        // Touch users never hover: bail out the instant a finger lands on it.
+        noBtn.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          registerAttempt(true);
+          flee(e.clientX, e.clientY, 480);
+          Cute.burst(e.clientX, e.clientY, 6);
+        });
+
+        noBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          registerAttempt(true);
+          flee(e.clientX || st.x, e.clientY || st.y, 520);
+        });
+
+        window.addEventListener("resize", function () {
+          if (st.parked) park();
+          else clampToScreen();
+        });
+
+        /* ---------------- the ever-growing YES ---------------- */
+
+        var baseW = 0;
+
+        function growYes() {
+          if (!baseW) baseW = yesBtn.offsetWidth;
+
+          // logarithmic growth: fast at first, then a gentle, endless swell
+          var scale = 1 + 0.62 * Math.log(1 + attempts);
+          var roomW = (window.innerWidth * 0.92) / baseW;
+          var roomH = (window.innerHeight * 0.55) / yesBtn.offsetHeight;
+          scale = Math.min(scale, roomW, roomH);
+
+          yesBtn.style.transform = "scale(" + scale + ")";
+          yesBtn.style.boxShadow =
+            "0 " +
+            (10 + attempts) +
+            "px " +
+            (30 + attempts * 3) +
+            "px rgba(215,90,150,.3), inset 0 -4px 0 rgba(0,0,0,.12)";
+        }
+
+        yesBtn.addEventListener("click", function (e) {
+          var r = yesBtn.getBoundingClientRect();
+          Cute.burst(r.left + r.width / 2, r.top + r.height / 2, 60);
+          Cute.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
+
+          document.getElementById("yay").classList.add("show");
+          noBtn.style.display = "none";
+
+          try {
+            localStorage.setItem(
+              "cutedate.saidYes",
+              JSON.stringify({
+                at: new Date().toISOString(),
+                dodges: attempts,
+              }),
+            );
+          } catch (err) {
+            /* private mode: no big deal */
+          }
+
+          setTimeout(function () {
+            window.location.href = "plan.html";
+          }, 1500);
+        });
+
+        /* ---------------- start ---------------- */
+
+        window.addEventListener("load", park);
+        park();
+      })();
+    </script>
+  </body>
 </html>
