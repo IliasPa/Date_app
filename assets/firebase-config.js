@@ -12,11 +12,13 @@
    --------------------------------------------------------------- */
 
 window.FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
+  apiKey: "AIzaSyDPOTT94xlpYhvnkazEk_C209aSuvYglWs",
+  authDomain: "cute-date106.firebaseapp.com",
+  // Realtime Database → Data tab: the URL printed above the data tree.
+  // Syncing stays off until this is filled in.
   databaseURL: "",
-  projectId: "",
-  appId: ""
+  projectId: "cute-date106",
+  appId: "1:263162280493:web:53d5b59c9c3a0f928156a4"
 };
 
 /* Both of you must use the same space name — it's the shared calendar. */

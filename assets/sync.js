@@ -151,7 +151,8 @@
     Cute.onChange(push);
   }
 
-  if (cfg && cfg.apiKey) {
+  // A half-filled config would only produce a broken badge, so wait for both.
+  if (cfg && cfg.apiKey && cfg.databaseURL) {
     boot();
   }
 })();
