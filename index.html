@@ -29,8 +29,15 @@
     padding: 34px 26px 30px;
   }
 
-  .bear { font-size: 3.6rem; display: block; animation: bob 2.6s ease-in-out infinite; }
+  .mascot { font-size: 3.6rem; display: block; animation: bob 2.6s ease-in-out infinite; }
   @keyframes bob { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-10px) rotate(3deg); } }
+
+  .askcard .lead {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--plum);
+    margin: 0 0 14px;
+  }
 
   .askcard h1 {
     color: var(--pink-600);
@@ -87,13 +94,6 @@
     transition: none; /* the physics loop owns this transform */
   }
 
-  .score {
-    margin-top: 14px;
-    font-size: .92rem;
-    color: var(--plum-soft);
-    min-height: 1.2em;
-  }
-
   /* celebration overlay */
   .yay {
     position: fixed;
@@ -122,21 +122,19 @@
 
 <main class="ask">
   <section class="askcard">
-    <span class="bear" aria-hidden="true">🧸</span>
+    <span class="mascot" aria-hidden="true">💐</span>
     <h1>Will you go on a date with me?</h1>
-    <p class="sub">Take your time&hellip; but there&rsquo;s really only one right answer 💘</p>
+    <p class="lead"><strong>Take your time&hellip; you are free to answer whatever you want.</strong></p>
     <p class="taunt" id="taunt">Pretty please? 🥺</p>
 
     <div class="btnarea">
       <button class="btn" id="yesBtn" type="button">YES 💖</button>
       <div id="noSlot" aria-hidden="true"></div>
     </div>
-
-    <p class="score" id="score"></p>
   </section>
 </main>
 
-<button class="btn" id="noBtn" type="button">No 🐟</button>
+<button class="btn" id="noBtn" type="button">No</button>
 
 <div class="yay" id="yay" role="status">
   <span class="big">🥳</span>
@@ -155,11 +153,9 @@
   var noSlot = document.getElementById("noSlot");
   var yesBtn = document.getElementById("yesBtn");
   var taunt  = document.getElementById("taunt");
-  var score  = document.getElementById("score");
 
   var TAUNTS = [
     "Pretty please? 🥺",
-    "Hey! That button is slippery 🐟",
     "It swims away, doesn't it? 🌊",
     "You can't catch a fish with your hands 🎣",
     "Nope. Not today. 😌",
@@ -219,7 +215,7 @@
 
   /* An attempt = a real click/tap on the fish, or a very close call.
      pointerdown and click can both fire for one tap, so debounce them. */
-  var lastAttempt = 0;
+  var lastAttempt = -1000;
 
   function registerAttempt(strong) {
     var now = performance.now();
@@ -236,10 +232,6 @@
       taunt.textContent = TAUNTS[Math.min(attempts, TAUNTS.length - 1)];
       taunt.style.opacity = "1";
     }, 140);
-
-    score.textContent = attempts === 1
-      ? "Dodges: 1 🐟"
-      : "Dodges: " + attempts + " 🐟  •  the fish is " + Math.round(st.agility * 100) / 100 + "× faster";
   }
 
   function flee(px, py, power) {
