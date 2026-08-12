@@ -59,26 +59,74 @@ Fifteen minutes, free, and the app keeps working exactly as it does now while yo
    Web (`</>`)*. Copy the `firebaseConfig` values into [assets/firebase-config.js](assets/firebase-config.js) —
    `apiKey`, `authDomain`, `databaseURL`, `projectId` and `appId`. These values are public by
    design; they name the project, they don't grant access.
-5. **Lock the database to your two accounts.** *Realtime Database → Rules*, paste this, replacing
-   the two addresses with the Google accounts that should have access, then *Publish*:
-
-   ```json
-   {
-     "rules": {
-       "spaces": {
-         "$space": {
-           ".read":  "auth != null && auth.token.email_verified == true && (auth.token.email == 'you@gmail.com' || auth.token.email == 'her@gmail.com')",
-           ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'you@gmail.com' || auth.token.email == 'her@gmail.com')"
-         }
-       }
-     }
-   }
-   ```
-
+5. **Set the rules.** *Realtime Database → Rules*, paste the block from
+   [Who can see what](#who-can-see-what) below, then *Publish*. Nothing in it needs editing —
+   access follows whoever is signed in.
 6. **Allow the site to sign in.** *Authentication → Settings → Authorized domains → Add domain* →
    `iliaspa.github.io`. (`localhost` is already allowed, for testing.)
 7. **Push, then open the calendar** and press **Sync my dates ☁️** in the top bar. Sign in once per
    device. Everything already saved in that browser is uploaded on the first sync.
+
+## Calendars and sharing
+
+Every Google account that signs in gets **its own private calendar**, stored at `spaces/<uid>`.
+Nobody can read anyone else's, so the app can be handed to friends as-is.
+
+Two people share one calendar with an invite code:
+
+1. One of you opens **Share 💞** in the top bar and presses **Create an invite code**.
+2. The other opens the app, signs in, opens **Share 💞**, and pastes the code into *Got a code
+   from someone?*
+3. From then on both of you read and write the same dates. The joiner's own dates are merged into
+   the shared calendar as they join — nothing is thrown away.
+
+**Leave this calendar** (shown only when you're on someone else's) puts you back on your own.
+Leaving never deletes dates: the shared copies stay with the other person, and your browser keeps
+its copies.
+
+### Who can see what
+
+These rules never need editing when a new person starts using the app — they key off the signed-in
+account, not a list of addresses:
+
+```json
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "invites": {
+      "$code": {
+        ".read":  "auth != null",
+        ".write": "auth != null && ((!data.exists() && (newData.child('space').val() === auth.uid || root.child('spaces').child(newData.child('space').val()).child('members').child(auth.uid).exists())) || (data.exists() && data.child('by').val() === auth.uid))"
+      }
+    },
+    "spaces": {
+      "$space": {
+        ".read": "auth != null && (auth.uid === $space || data.child('members').child(auth.uid).exists())",
+        "dates": {
+          ".write": "auth != null && (auth.uid === $space || root.child('spaces').child($space).child('members').child(auth.uid).exists())"
+        },
+        "members": {
+          "$uid": {
+            ".write": "auth != null && (auth.uid === $space || (auth.uid === $uid && (!newData.exists() || root.child('invites').child(newData.child('code').val()).child('space').val() === $space)))"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+In words: you may read a calendar if it's yours or you're a member of it; you may write dates to it
+on the same terms; you may add *yourself* as a member only by presenting an invite code that really
+points at that calendar; and you may create invite codes only for a calendar you're already on.
+
+Optional hardening: turn on **App Check** (with reCAPTCHA v3) in the Firebase console so only your
+site can talk to the database, rather than any script holding the public config.
 
 ### How the syncing behaves
 
@@ -89,6 +137,7 @@ Fifteen minutes, free, and the app keeps working exactly as it does now while yo
 - Deleting leaves a tombstone rather than just dropping the record — otherwise the other device
   would helpfully sync it back.
 - Not signed in, or no config filled in? The app behaves exactly as it always has, saving locally.
+- Signing out leaves this browser's copies alone — they just stop following you around.
 
 ## Files
 

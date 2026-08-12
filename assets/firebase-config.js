@@ -19,5 +19,6 @@ window.FIREBASE_CONFIG = {
   appId: "1:263162280493:web:53d5b59c9c3a0f928156a4"
 };
 
-/* Both of you must use the same space name — it's the shared calendar. */
-window.DATE_SPACE = "us";
+/* Calendars are per account now: everyone who signs in gets their own,
+   and two people share one by swapping an invite code in the app
+   (the "Share 💞" button). Nothing to configure here. */
