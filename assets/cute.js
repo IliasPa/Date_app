@@ -95,6 +95,24 @@
     localStorage.setItem(KEY, JSON.stringify(list));
   }
 
+  /* Which account the copies in this browser belong to. Without this, the
+     next person to sign in here would upload the previous person's dates
+     into their own calendar. */
+  var OWNER = "cutedate.owner.v1";
+
+  function owner() {
+    try { return localStorage.getItem(OWNER) || null; } catch (err) { return null; }
+  }
+
+  function claim(uid) {
+    try { localStorage.setItem(OWNER, uid); } catch (err) { /* private mode */ }
+  }
+
+  function forgetLocal() {
+    try { localStorage.removeItem(KEY); } catch (err) { /* nothing to forget */ }
+    announce();
+  }
+
   /* Anyone who cares when the dates change (the calendar, the sync layer). */
   var listeners = [];
 
@@ -235,6 +253,9 @@
     mergeRemote: mergeRemote,
     pendingPush: pendingPush,
     onChange: onChange,
+    owner: owner,
+    claim: claim,
+    forgetLocal: forgetLocal,
     todayISO: todayISO,
     prettyDate: prettyDate,
     prettyTime: prettyTime

@@ -105,6 +105,16 @@
           ? "Sharing this calendar, signed in as " + (user.email || "")
           : "Saved to the cloud as " + (user.email || ""));
     }, function (err) {
+      /* Refused on someone else's calendar means we were removed from it —
+         quietly go home rather than sitting there stuck. */
+      if (space !== user.uid) {
+        space = user.uid;
+        fb.set(fb.ref(fb.db, "users/" + user.uid + "/space"), user.uid).catch(function () {});
+        members = [];
+        paintSheet();
+        listen();
+        return;
+      }
       show("Sync blocked ⚠️", (err && err.message) || "The database rules refused this account.");
     });
 
@@ -137,11 +147,20 @@
 
   /* ================= sharing ================= */
 
+  /* Codes are the only key to a shared calendar, so they come from the
+     cryptographic generator rather than Math.random. 32 letters divides 256
+     evenly, so no character is more likely than another. */
   function makeCode() {
     var out = "";
-    for (var i = 0; i < 6; i++) {
-      out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+    var bytes = new Uint8Array(6);
+
+    if (window.crypto && window.crypto.getRandomValues) {
+      window.crypto.getRandomValues(bytes);
+    } else {
+      for (var j = 0; j < 6; j++) bytes[j] = Math.floor(Math.random() * 256);
     }
+
+    for (var i = 0; i < 6; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
     return out;
   }
 
@@ -291,12 +310,30 @@
     people.forEach(function (p) {
       var li = document.createElement("li");
       li.textContent = "💗 " + p.email;
+
       if (p.uid === user.uid) {
         var tag = document.createElement("span");
         tag.className = "you";
         tag.textContent = "you";
         li.appendChild(tag);
+      } else if (owner) {
+        // only the calendar's owner can show someone the door
+        var kick = document.createElement("button");
+        kick.type = "button";
+        kick.className = "del";
+        kick.style.marginLeft = "auto";
+        kick.textContent = "✕";
+        kick.title = "Remove " + p.email + " from this calendar";
+        kick.setAttribute("aria-label", "Remove " + p.email);
+        kick.addEventListener("click", function () {
+          if (!confirm("Remove " + p.email + " from this calendar?\n\nThey stop seeing new dates straight away. Copies already on their device stay there.")) return;
+          fb.remove(fb.ref(fb.db, "spaces/" + space + "/members/" + p.uid)).catch(function (err) {
+            say("#joinNote", (err && err.message) || "Could not remove them.");
+          });
+        });
+        li.appendChild(kick);
       }
+
       list.appendChild(li);
     });
 
@@ -336,6 +373,15 @@
     user = who;
     show("Syncing…", who.email || "", true);
     if (shareBtn) shareBtn.hidden = false;
+
+    /* A shared computer: the copies sitting in this browser belong to whoever
+       used it last. Only carry them up if they are unclaimed (someone who used
+       the app before ever signing in) or already ours. Everyone else's dates
+       are safe in their own account, so dropping the cache here loses nothing. */
+    var held = Cute.owner();
+    if (held && held !== who.uid) Cute.forgetLocal();
+    Cute.claim(who.uid);
+
     await resolveSpace();
     listen();
   }
@@ -399,10 +445,11 @@
     join: function (code) { return joinWithCode(code); },
     leave: function () { return leaveShared(); },
     tidyCode: tidyCode,
-    _install: function (fakeFb, fakeUser) {   // tests only
+    _install: function (fakeFb, fakeUser, viaSignIn) {   // tests only
       fb = fakeFb;
-      user = fakeUser;
       mount();
+      if (viaSignIn) return afterSignIn(fakeUser);       // the full sign-in path
+      user = fakeUser;
       if (shareBtn) shareBtn.hidden = false;
       return resolveSpace().then(listen);
     }

@@ -125,8 +125,24 @@ In words: you may read a calendar if it's yours or you're a member of it; you ma
 on the same terms; you may add *yourself* as a member only by presenting an invite code that really
 points at that calendar; and you may create invite codes only for a calendar you're already on.
 
+Some consequences worth knowing:
+
+- **An invite code is the key.** Anyone signed in who has a valid code can join that calendar, so
+  treat it like a password — don't post it in a group chat. Codes can't be listed or browsed
+  (only looked up one at a time, out of about a billion), but they don't expire on their own.
+- **Revoking.** Delete the code under `invites` in the Firebase console to stop new joins, and use
+  the ✕ next to a person in **Share 💞** to remove someone who already joined.
+- **Joining merges your dates in.** Whatever is on your device becomes part of the shared calendar
+  when you join, and the other person can see it. Leave first if you'd rather keep something private.
+- **Shared computers are handled.** The dates cached in a browser are tagged with the account they
+  belong to; if a different account signs in, that cache is cleared rather than uploaded into the
+  new person's calendar. Dates made *before* anyone signed in are treated as unclaimed and do
+  migrate up on first sign-in, which is what you want.
+
 Optional hardening: turn on **App Check** (with reCAPTCHA v3) in the Firebase console so only your
-site can talk to the database, rather than any script holding the public config.
+site can talk to the database, rather than any script holding the public config. You can also make
+codes expire by adding `&& root.child('invites').child(newData.child('code').val()).child('created').val() > now - 604800000`
+to the `members/$uid` write rule, which stops a leaked code working after a week.
 
 ### How the syncing behaves
 
