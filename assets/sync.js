@@ -349,11 +349,19 @@
 
   /* ================= sign in / out ================= */
 
+  /* Always show the account chooser. Without this Google quietly reuses the
+     last account, so "sign out and switch" would land you back where you were. */
+  function googleProvider() {
+    var p = new fb.GoogleAuthProvider();
+    p.setCustomParameters({ prompt: "select_account" });
+    return p;
+  }
+
   function signIn() {
     show("Signing in…", "", true);
-    fb.signInWithPopup(fb.auth, new fb.GoogleAuthProvider()).catch(function (err) {
+    fb.signInWithPopup(fb.auth, googleProvider()).catch(function (err) {
       if (err && /popup/i.test(err.code || "")) {
-        fb.signInWithRedirect(fb.auth, new fb.GoogleAuthProvider());
+        fb.signInWithRedirect(fb.auth, googleProvider());
         return;
       }
       show("Sign in failed ⚠️", (err && err.message) || "");
@@ -362,7 +370,7 @@
 
   function onBadgeClick() {
     if (!user) { signIn(); return; }
-    if (confirm("Stop syncing on this device?\n\nYour dates stay saved here, they just won't follow you to other devices until you sign in again.")) {
+    if (confirm("Sign out of " + (user.email || "this account") + "?\n\nYour dates stay in the cloud. Sign in again with any Google account — the dates on this device are swapped for that account's own.")) {
       fb.signOut(fb.auth);
     }
   }
